@@ -1,0 +1,762 @@
+--==============================================================
+-- OROHUB V2 // MOBILE PVE
+-- Modern UI / NPC ESP / HP / FOV / Target Selection
+--==============================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--==============================================================
+-- REMOVE OLD
+--==============================================================
+
+local old = PlayerGui:FindFirstChild("OroHubV2")
+if old then
+    old:Destroy()
+end
+
+--==============================================================
+-- SETTINGS
+--==============================================================
+
+local Settings = {
+    ESP = false,
+    HPBar = true,
+    Distance = true,
+    Target = false,
+    FOV = true,
+
+    MaxDistance = 500,
+    FOVRadius = 180,
+
+    Filter = "",
+    UpdateRate = 0.10,
+
+    ESPColor = Color3.fromRGB(0, 255, 140)
+}
+
+local updateModes = {
+    {name = "HIGH", value = 0.05},
+    {name = "MEDIUM", value = 0.10},
+    {name = "LOW", value = 0.20}
+}
+
+local updateIndex = 2
+
+--==============================================================
+-- GUI
+--==============================================================
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "OroHubV2"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.Parent = PlayerGui
+
+--==============================================================
+-- OPEN BUTTON
+--==============================================================
+
+local OpenButton = Instance.new("TextButton")
+OpenButton.Size = UDim2.fromOffset(58, 48)
+OpenButton.Position = UDim2.new(0, 18, 0.35, 0)
+OpenButton.BackgroundColor3 = Color3.fromRGB(16, 18, 27)
+OpenButton.Text = "ORO"
+OpenButton.TextColor3 = Settings.ESPColor
+OpenButton.TextSize = 13
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Parent = Gui
+
+Instance.new("UICorner", OpenButton).CornerRadius = UDim.new(0, 12)
+
+local openStroke = Instance.new("UIStroke")
+openStroke.Color = Settings.ESPColor
+openStroke.Thickness = 2
+openStroke.Parent = OpenButton
+
+--==============================================================
+-- MAIN
+--==============================================================
+
+local Main = Instance.new("Frame")
+Main.Size = UDim2.fromOffset(390, 440)
+Main.Position = UDim2.new(0.5, -195, 0.5, -220)
+Main.BackgroundColor3 = Color3.fromRGB(13, 15, 23)
+Main.Visible = true
+Main.Parent = Gui
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 16)
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(45, 50, 70)
+MainStroke.Thickness = 1.5
+MainStroke.Parent = Main
+
+--==============================================================
+-- TOP BAR
+--==============================================================
+
+local Top = Instance.new("Frame")
+Top.Size = UDim2.new(1, 0, 0, 58)
+Top.BackgroundColor3 = Color3.fromRGB(19, 22, 33)
+Top.Parent = Main
+
+Instance.new("UICorner", Top).CornerRadius = UDim.new(0, 16)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -70, 0, 28)
+Title.Position = UDim2.fromOffset(18, 7)
+Title.BackgroundTransparency = 1
+Title.Text = "OROHUB"
+Title.TextColor3 = Settings.ESPColor
+Title.TextSize = 17
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Top
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Size = UDim2.new(1, -70, 0, 18)
+SubTitle.Position = UDim2.fromOffset(19, 31)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "MOBILE  •  PVE TOOLS"
+SubTitle.TextColor3 = Color3.fromRGB(130, 140, 160)
+SubTitle.TextSize = 9
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = Top
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.fromOffset(35, 35)
+Close.Position = UDim2.new(1, -45, 0, 11)
+Close.BackgroundColor3 = Color3.fromRGB(35, 38, 50)
+Close.Text = "×"
+Close.TextColor3 = Color3.fromRGB(230, 230, 235)
+Close.TextSize = 22
+Close.Font = Enum.Font.GothamBold
+Close.Parent = Top
+
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 9)
+
+Close.Activated:Connect(function()
+    Gui:Destroy()
+end)
+
+OpenButton.Activated:Connect(function()
+    Main.Visible = not Main.Visible
+end)
+
+--==============================================================
+-- SIDEBAR
+--==============================================================
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.fromOffset(105, 365)
+Sidebar.Position = UDim2.fromOffset(10, 68)
+Sidebar.BackgroundColor3 = Color3.fromRGB(18, 21, 31)
+Sidebar.Parent = Main
+
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 12)
+
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -130, 1, -78)
+Content.Position = UDim2.fromOffset(120, 68)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+--==============================================================
+-- TAB SYSTEM
+--==============================================================
+
+local Tabs = {}
+local Pages = {}
+
+local function createTab(name, icon, y)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -12, 0, 45)
+    button.Position = UDim2.fromOffset(6, y)
+    button.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
+    button.Text = icon .. "  " .. name
+    button.TextColor3 = Color3.fromRGB(160, 170, 190)
+    button.TextSize = 10
+    button.Font = Enum.Font.GothamBold
+    button.Parent = Sidebar
+
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 9)
+
+    Tabs[name] = button
+
+    return button
+end
+
+local function createPage()
+    local page = Instance.new("Frame")
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.Parent = Content
+
+    table.insert(Pages, page)
+
+    return page
+end
+
+local function selectTab(name)
+    for _, page in ipairs(Pages) do
+        page.Visible = false
+    end
+
+    for tabName, button in pairs(Tabs) do
+        button.BackgroundColor3 =
+            tabName == name
+            and Color3.fromRGB(0, 150, 90)
+            or Color3.fromRGB(25, 28, 40)
+
+        button.TextColor3 =
+            tabName == name
+            and Color3.fromRGB(255, 255, 255)
+            or Color3.fromRGB(160, 170, 190)
+    end
+
+    local page = Pages[
+        name == "ESP" and 1 or
+        name == "Target" and 2 or
+        3
+    ]
+
+    if page then
+        page.Visible = true
+    end
+end
+
+local ESPTab = createTab("ESP", "👁", 10)
+local TargetTab = createTab("Target", "🎯", 62)
+local SettingsTab = createTab("Settings", "⚙", 114)
+
+local ESPPage = createPage()
+local TargetPage = createPage()
+local SettingsPage = createPage()
+
+ESPTab.Activated:Connect(function()
+    selectTab("ESP")
+end)
+
+TargetTab.Activated:Connect(function()
+    selectTab("Target")
+end)
+
+SettingsTab.Activated:Connect(function()
+    selectTab("Settings")
+end)
+
+--==============================================================
+-- UI HELPERS
+--==============================================================
+
+local function sectionTitle(parent, text, y)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 0, 25)
+    label.Position = UDim2.fromOffset(5, y)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Settings.ESPColor
+    label.TextSize = 11
+    label.Font = Enum.Font.GothamBold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = parent
+
+    return label
+end
+
+local function toggle(parent, text, y, key)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -10, 0, 38)
+    button.Position = UDim2.fromOffset(5, y)
+    button.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
+    button.TextColor3 = Color3.fromRGB(190, 195, 210)
+    button.TextSize = 10
+    button.Font = Enum.Font.GothamSemibold
+    button.Parent = parent
+
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+    local function refresh()
+        if Settings[key] then
+            button.BackgroundColor3 = Color3.fromRGB(0, 150, 90)
+            button.Text = text .. "    ON"
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        else
+            button.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
+            button.Text = text .. "    OFF"
+            button.TextColor3 = Color3.fromRGB(180, 185, 200)
+        end
+    end
+
+    button.Activated:Connect(function()
+        Settings[key] = not Settings[key]
+        refresh()
+    end)
+
+    refresh()
+
+    return button
+end
+
+local function inputBox(parent, labelText, y, defaultText, callback)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.55, 0, 0, 30)
+    label.Position = UDim2.fromOffset(5, y)
+    label.BackgroundTransparency = 1
+    label.Text = labelText
+    label.TextColor3 = Color3.fromRGB(180, 185, 200)
+    label.TextSize = 10
+    label.Font = Enum.Font.GothamSemibold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = parent
+
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.4, -5, 0, 30)
+    box.Position = UDim2.new(0.6, 0, 0, y)
+    box.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
+    box.TextColor3 = Color3.fromRGB(230, 235, 240)
+    box.Text = tostring(defaultText)
+    box.TextSize = 10
+    box.Font = Enum.Font.GothamSemibold
+    box.ClearTextOnFocus = false
+    box.Parent = parent
+
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 7)
+
+    box.FocusLost:Connect(function()
+        callback(box.Text)
+    end)
+
+    return box
+end
+
+--==============================================================
+-- ESP PAGE
+--==============================================================
+
+sectionTitle(ESPPage, "VISUALS", 5)
+
+toggle(ESPPage, "NPC ESP", 32, "ESP")
+toggle(ESPPage, "HP BAR", 76, "HPBar")
+toggle(ESPPage, "DISTANCE", 120, "Distance")
+
+sectionTitle(ESPPage, "ESP RANGE", 170)
+
+inputBox(
+    ESPPage,
+    "Max Distance",
+    198,
+    Settings.MaxDistance,
+    function(value)
+        local n = tonumber(value)
+
+        if n then
+            Settings.MaxDistance = math.clamp(
+                math.floor(n),
+                25,
+                5000
+            )
+        end
+    end
+)
+
+inputBox(
+    ESPPage,
+    "NPC Filter",
+    238,
+    "",
+    function(value)
+        Settings.Filter = string.lower(value)
+    end
+)
+
+local Counter = Instance.new("TextLabel")
+Counter.Size = UDim2.new(1, -10, 0, 35)
+Counter.Position = UDim2.fromOffset(5, 285)
+Counter.BackgroundColor3 = Color3.fromRGB(21, 24, 35)
+Counter.TextColor3 = Settings.ESPColor
+Counter.Text = "NPC ACTIVE: 0"
+Counter.TextSize = 10
+Counter.Font = Enum.Font.GothamBold
+Counter.Parent = ESPPage
+
+Instance.new("UICorner", Counter).CornerRadius = UDim.new(0, 8)
+
+--==============================================================
+-- TARGET PAGE
+--==============================================================
+
+sectionTitle(TargetPage, "TARGET SELECTION", 5)
+
+toggle(TargetPage, "TARGET SELECT", 32, "Target")
+toggle(TargetPage, "FOV CIRCLE", 76, "FOV")
+
+inputBox(
+    TargetPage,
+    "FOV Radius",
+    125,
+    Settings.FOVRadius,
+    function(value)
+        local n = tonumber(value)
+
+        if n then
+            Settings.FOVRadius = math.clamp(
+                math.floor(n),
+                50,
+                500
+            )
+        end
+    end
+)
+
+local TargetInfo = Instance.new("Frame")
+TargetInfo.Size = UDim2.new(1, -10, 0, 105)
+TargetInfo.Position = UDim2.fromOffset(5, 175)
+TargetInfo.BackgroundColor3 = Color3.fromRGB(20, 23, 34)
+TargetInfo.Parent = TargetPage
+
+Instance.new("UICorner", TargetInfo).CornerRadius = UDim.new(0, 10)
+
+local TargetName = Instance.new("TextLabel")
+TargetName.Size = UDim2.new(1, -20, 0, 30)
+TargetName.Position = UDim2.fromOffset(10, 10)
+TargetName.BackgroundTransparency = 1
+TargetName.Text = "TARGET: NONE"
+TargetName.TextColor3 = Settings.ESPColor
+TargetName.TextSize = 11
+TargetName.Font = Enum.Font.GothamBold
+TargetName.TextXAlignment = Enum.TextXAlignment.Left
+TargetName.Parent = TargetInfo
+
+local TargetHP = TargetName:Clone()
+TargetHP.Position = UDim2.fromOffset(10, 40)
+TargetHP.Text = "HP: --"
+TargetHP.TextColor3 = Color3.fromRGB(200, 205, 220)
+TargetHP.Parent = TargetInfo
+
+local TargetDistance = TargetName:Clone()
+TargetDistance.Position = UDim2.fromOffset(10, 70)
+TargetDistance.Text = "DISTANCE: --"
+TargetDistance.TextColor3 = Color3.fromRGB(200, 205, 220)
+TargetDistance.Parent = TargetInfo
+
+--==============================================================
+-- SETTINGS PAGE
+--==============================================================
+
+sectionTitle(SettingsPage, "PERFORMANCE", 5)
+
+local RateButton = Instance.new("TextButton")
+RateButton.Size = UDim2.new(1, -10, 0, 40)
+RateButton.Position = UDim2.fromOffset(5, 32)
+RateButton.BackgroundColor3 = Color3.fromRGB(25, 28, 40)
+RateButton.TextColor3 = Color3.fromRGB(220, 225, 235)
+RateButton.TextSize = 10
+RateButton.Font = Enum.Font.GothamBold
+RateButton.Text = "UPDATE RATE: MEDIUM"
+RateButton.Parent = SettingsPage
+
+Instance.new("UICorner", RateButton).CornerRadius = UDim.new(0, 8)
+
+RateButton.Activated:Connect(function()
+    updateIndex += 1
+
+    if updateIndex > #updateModes then
+        updateIndex = 1
+    end
+
+    local mode = updateModes[updateIndex]
+
+    Settings.UpdateRate = mode.value
+    RateButton.Text = "UPDATE RATE: " .. mode.name
+end)
+
+sectionTitle(SettingsPage, "INFORMATION", 90)
+
+local Info = Instance.new("TextLabel")
+Info.Size = UDim2.new(1, -10, 0, 100)
+Info.Position = UDim2.fromOffset(5, 120)
+Info.BackgroundColor3 = Color3.fromRGB(20, 23, 34)
+Info.TextColor3 = Color3.fromRGB(150, 160, 180)
+Info.TextSize = 10
+Info.Font = Enum.Font.GothamMedium
+Info.TextWrapped = true
+Info.Text = [[
+OROHUB V2
+
+• NPC/PvE tools
+• Event-driven NPC cache
+• Mobile friendly UI
+• Target selection only
+• No automatic camera control
+]]
+Info.Parent = SettingsPage
+
+Instance.new("UICorner", Info).CornerRadius = UDim.new(0, 10)
+
+--==============================================================
+-- FOV
+--==============================================================
+
+local FOV = Instance.new("Frame")
+FOV.Name = "FOV"
+FOV.AnchorPoint = Vector2.new(0.5, 0.5)
+FOV.BackgroundTransparency = 1
+FOV.Visible = Settings.FOV
+FOV.Parent = Gui
+
+Instance.new("UICorner", FOV).CornerRadius = UDim.new(1, 0)
+
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Color = Settings.ESPColor
+FOVStroke.Thickness = 2
+FOVStroke.Transparency = 0.25
+FOVStroke.Parent = FOV
+
+--==============================================================
+-- NPC CACHE
+--==============================================================
+
+local NPCs = {}
+
+local function isPlayerCharacter(model)
+    return Players:GetPlayerFromCharacter(model) ~= nil
+end
+
+local function registerNPC(model)
+
+    if not model:IsA("Model") then
+        return
+    end
+
+    if NPCs[model] then
+        return
+    end
+
+    if isPlayerCharacter(model) then
+        return
+    end
+
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local head = model:FindFirstChild("Head")
+
+    if not humanoid or not head then
+        return
+    end
+
+    NPCs[model] = true
+end
+
+local function removeNPC(model)
+    NPCs[model] = nil
+end
+
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("Model") then
+        registerNPC(obj)
+    end
+end
+
+workspace.DescendantAdded:Connect(function(obj)
+
+    if obj:IsA("Model") then
+        task.defer(function()
+            registerNPC(obj)
+        end)
+    end
+
+    local parent = obj.Parent
+
+    if parent and parent:IsA("Model") then
+        task.defer(function()
+            registerNPC(parent)
+        end)
+    end
+end)
+
+workspace.DescendantRemoving:Connect(function(obj)
+    removeNPC(obj)
+end)
+
+--==============================================================
+-- ESP OBJECT POOL
+--==============================================================
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESP"
+ESPFolder.Parent = Gui
+
+local ESPObjects = {}
+
+local function createESP(index)
+
+    if ESPObjects[index] then
+        return ESPObjects[index]
+    end
+
+    local holder = Instance.new("Frame")
+    holder.Size = UDim2.fromOffset(130, 48)
+    holder.BackgroundTransparency = 1
+    holder.Visible = false
+    holder.Parent = ESPFolder
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 0, 20)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Settings.ESPColor
+    nameLabel.TextStrokeTransparency = 0.25
+    nameLabel.TextSize = 10
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.Parent = holder
+
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Size = UDim2.new(1, 0, 0, 17)
+    distanceLabel.Position = UDim2.fromOffset(0, 19)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.TextColor3 = Color3.fromRGB(210, 215, 225)
+    distanceLabel.TextStrokeTransparency = 0.3
+    distanceLabel.TextSize = 9
+    distanceLabel.Font = Enum.Font.GothamMedium
+    distanceLabel.Parent = holder
+
+    local hpBack = Instance.new("Frame")
+    hpBack.Size = UDim2.new(1, -20, 0, 5)
+    hpBack.Position = UDim2.fromOffset(10, 39)
+    hpBack.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    hpBack.BorderSizePixel = 0
+    hpBack.Parent = holder
+
+    Instance.new("UICorner", hpBack).CornerRadius = UDim.new(1, 0)
+
+    local hpFill = Instance.new("Frame")
+    hpFill.Size = UDim2.fromScale(1, 1)
+    hpFill.BackgroundColor3 = Settings.ESPColor
+    hpFill.BorderSizePixel = 0
+    hpFill.Parent = hpBack
+
+    Instance.new("UICorner", hpFill).CornerRadius = UDim.new(1, 0)
+
+    ESPObjects[index] = {
+        holder = holder,
+        name = nameLabel,
+        distance = distanceLabel,
+        hpBack = hpBack,
+        hpFill = hpFill
+    }
+
+    return ESPObjects[index]
+end
+
+--==============================================================
+-- TARGET
+--==============================================================
+
+local CurrentTarget = nil
+
+local function passesFilter(npc)
+
+    if Settings.Filter == "" then
+        return true
+    end
+
+    return string.find(
+        string.lower(npc.Name),
+        Settings.Filter,
+        1,
+        true
+    ) ~= nil
+end
+
+local function getRoot(npc)
+    return npc:FindFirstChild("HumanoidRootPart")
+        or npc.PrimaryPart
+        or npc:FindFirstChild("Head")
+end
+
+--==============================================================
+-- MAIN UPDATE
+--==============================================================
+
+local timer = 0
+
+RunService.RenderStepped:Connect(function(dt)
+
+    local camera = workspace.CurrentCamera
+    if not camera then
+        return
+    end
+
+    -- FOV
+    local viewport = camera.ViewportSize
+
+    FOV.Size = UDim2.fromOffset(
+        Settings.FOVRadius * 2,
+        Settings.FOVRadius * 2
+    )
+
+    FOV.Position = UDim2.fromOffset(
+        viewport.X / 2,
+        viewport.Y / 2
+    )
+
+    FOV.Visible = Settings.FOV
+
+    timer += dt
+
+    if timer < Settings.UpdateRate then
+        return
+    end
+
+    timer = 0
+
+    local character = LocalPlayer.Character
+    local localRoot =
+        character and character:FindFirstChild("HumanoidRootPart")
+
+    if not localRoot then
+        return
+    end
+
+    local center = Vector2.new(
+        viewport.X / 2,
+        viewport.Y / 2
+    )
+
+    local closest = nil
+    local closestScreenDistance = Settings.FOVRadius
+
+    local visibleCount = 0
+    local espIndex = 0
+
+    for npc in pairs(NPCs) do
+
+        if not npc.Parent then
+            removeNPC(npc)
+            continue
+        end
+
+        local humanoid = npc:FindFirstChildOfClass("Humanoid")
+        local head = npc:FindFirstChild("Head")
+        local root = getRoot(npc)
+
+        if not humanoid or humanoid.Health <= 0 or not head or not root then
+            continue
+        end
+
+        if not passesFilter(npc) then
+            continue
+        end
+
+        local distance =
+            (localRoot.Position - root.Position).Magnitude
+
+        if distance > Settings.MaxDistance then
+            continue
+        end
